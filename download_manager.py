@@ -7,6 +7,40 @@ from requests import get, head, codes
 from hashlib import md5
 from re import findall
 from os import remove, path
+from PySide import QtGui
+import sys
+
+from main import Ui_MainWindow as mainFrame
+from popup import Ui_Dialog as popupFrame
+
+class Popup(QtGui.QWidget):
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self)
+        self.parent = parent
+        self.ui = popupFrame()
+        self.ui.setupUi(self)
+        self.show()
+        
+    def accept(self):
+        print("Accept")
+        
+    def reject(self):
+        self.close()
+
+class MainWindow(QtGui.QMainWindow):
+    def __init__(self):
+        super(MainWindow, self).__init__()
+        self.ui = mainFrame()
+        self.ui.setupUi(self)
+        
+        self.downloads = []
+        
+        self.ui.actionNew_Download.triggered.connect(self.addDownload)
+        
+        self.show()
+        
+    def addDownload(self):
+        self.popup = Popup(self)
 
 class Download:
     def __init__(self, url, filename, md5hash):
@@ -76,3 +110,10 @@ def checksum(filename, md5sum):
             return False
 
 #downloadFile("http://downloads.sourceforge.net/project/filezilla/FileZilla_Client/3.9.0.6/FileZilla_3.9.0.6_x86_64-linux-gnu.tar.bz2?r=&ts=1419810214&use_mirror=softlayer-sng", None, "07f9fa2a5069932285e0217bfd350626")
+def main():
+    app = QtGui.QApplication(sys.argv)
+    win = MainWindow()
+    sys.exit(app.exec_())
+    
+if __name__ == "__main__":
+    main()
