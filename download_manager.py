@@ -8,6 +8,23 @@ from hashlib import md5
 from re import findall
 from os import remove, path
 
+class Download:
+    def __init__(self, url, filename, md5hash):
+        self.url = url
+        self.filename = filename
+        self.md5hash = md5hash
+        self.progress = 0
+
+    def startDownload(self):
+        pass
+    
+    def pauseDownload(self):
+        pass
+    
+    def stopDownload(self):
+        pass
+
+
 def downloadFile(url, filename=None, md5hash=None):
     """Downloads a file"""
     try:
@@ -58,4 +75,4 @@ def checksum(filename, md5sum):
         else:
             return False
 
-downloadFile("http://downloads.sourceforge.net/project/filezilla/FileZilla_Client/3.9.0.6/FileZilla_3.9.0.6_x86_64-linux-gnu.tar.bz2?r=&ts=1419810214&use_mirror=softlayer-sng", None, "07f9fa2a5069932285e0217bfd350626")
+#downloadFile("http://downloads.sourceforge.net/project/filezilla/FileZilla_Client/3.9.0.6/FileZilla_3.9.0.6_x86_64-linux-gnu.tar.bz2?r=&ts=1419810214&use_mirror=softlayer-sng", None, "07f9fa2a5069932285e0217bfd350626")
