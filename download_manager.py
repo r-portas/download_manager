@@ -9,6 +9,7 @@ from re import findall
 from os import remove, path
 from PySide import QtGui
 import sys
+import threading
 
 from main import Ui_MainWindow as mainFrame
 from popup import Ui_Dialog as popupFrame
@@ -22,7 +23,13 @@ class Popup(QtGui.QWidget):
         self.show()
         
     def accept(self):
-        print("Accept")
+        #self.parent.downloads.append()
+        url = self.ui.urlEdit.text()
+        filename = self.ui.filenameEdit.text()
+        md5 = self.ui.hashEdit.text()
+        self.parent.downloads.append(Download(url, filename, md5))
+        self.parent.updateTable()
+        self.close()
         
     def reject(self):
         self.close()
@@ -41,6 +48,12 @@ class MainWindow(QtGui.QMainWindow):
         
     def addDownload(self):
         self.popup = Popup(self)
+        
+    def updateTable(self):
+        self.ui.downloadsList.clear()
+        for download in self.downloads:
+            self.ui.downloadsList.addItem(str(download))
+        
 
 class Download:
     def __init__(self, url, filename, md5hash):
@@ -48,15 +61,23 @@ class Download:
         self.filename = filename
         self.md5hash = md5hash
         self.progress = 0
+        self.thread = None
 
     def startDownload(self):
-        pass
+        thread = threading.Thread(target=downloadFile, args=(self.url,
+                                                             self.filename,
+                                                             self.md5hash))
+        thread.start()    
     
     def pauseDownload(self):
-        pass
+         pass
+
     
     def stopDownload(self):
         pass
+
+    def __str__(self):
+        return "{} - {}".format(self.filename, self.progress)
 
 
 def downloadFile(url, filename=None, md5hash=None):
