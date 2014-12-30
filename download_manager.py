@@ -43,7 +43,7 @@ class MainWindow(QtGui.QMainWindow):
         self.downloads = []
         
         self.ui.actionNew_Download.triggered.connect(self.addDownload)
-        
+        self.ui.startButton.clicked.connect(self.startDownload)
         self.show()
         
     def addDownload(self):
@@ -54,6 +54,11 @@ class MainWindow(QtGui.QMainWindow):
         for download in self.downloads:
             self.ui.downloadsList.addItem(str(download))
         
+    def startDownload(self):
+        index = self.ui.downloadsList.currentRow()
+        if index != -1:
+            self.downloads[index].parentWindow = self
+            self.downloads[index].startDownload()
 
 class Download:
     def __init__(self, url, filename, md5hash):
@@ -62,25 +67,32 @@ class Download:
         self.md5hash = md5hash
         self.progress = 0
         self.thread = None
+        self.parentWindow = None
 
     def startDownload(self):
+        if self.filename == "":
+            self.filename = None
         thread = threading.Thread(target=downloadFile, args=(self.url,
+                                                             self.parentWindow,
                                                              self.filename,
-                                                             self.md5hash))
+                                                             self.md5hash,
+                                                             self))
         thread.start()    
     
     def pauseDownload(self):
          pass
-
     
     def stopDownload(self):
         pass
 
     def __str__(self):
-        return "{} - {}".format(self.filename, self.progress)
+        if self.filename == "":
+            return "{} - {}".format(self.url, self.progress)
+        else:
+            return "{} - {}".format(self.filename, self.progress)
 
 
-def downloadFile(url, filename=None, md5hash=None):
+def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
     """Downloads a file"""
     try:
         amount = 1024
@@ -91,6 +103,8 @@ def downloadFile(url, filename=None, md5hash=None):
             content = headers.get('content-disposition')
             dlFilename = findall('filename="(.*)"', content)[0]
             filename = dlFilename
+            parent.filename = filename
+            parentWindow.updateTable()
             
         if path.isfile(filename):
             remove(filename)
@@ -105,10 +119,17 @@ def downloadFile(url, filename=None, md5hash=None):
                     recSize += amount
                     if filesize:
                         print("Received {}/{}".format(recSize, filesize))
+                        prog = float(recSize)/float(filesize)
+                        parent.progress = prog * 100
+                        parentWindow.updateTable()
                     else:
                         print("Received {}".format(recSize))
+                        parent.progress = "Downloading..."
+                        parentWindow.updateTable()
                     f.write(chunk)
                 print("Download finished")
+                parent.progress = "Download Complete"
+                parentWindow.updateTable()
                 
             else:
                 print("Bad status code received, canceling download [Status code: {}]".format(req.status_code))
