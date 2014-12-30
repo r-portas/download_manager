@@ -14,6 +14,7 @@ import threading
 from main import Ui_MainWindow as mainFrame
 from popup import Ui_Dialog as popupFrame
 
+
 class Popup(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self)
@@ -34,6 +35,7 @@ class Popup(QtGui.QWidget):
     def reject(self):
         self.close()
 
+
 class MainWindow(QtGui.QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
@@ -41,9 +43,12 @@ class MainWindow(QtGui.QMainWindow):
         self.ui.setupUi(self)
         
         self.downloads = []
-        
+        self.popup = None
+
         self.ui.actionNew_Download.triggered.connect(self.addDownload)
         self.ui.startButton.clicked.connect(self.startDownload)
+        self.ui.stopDownload.clicked.connect(self.stopDownload)
+        self.ui.pauseButton.clicked.connect(self.pauseDownload)
         self.show()
         
     def addDownload(self):
@@ -59,6 +64,19 @@ class MainWindow(QtGui.QMainWindow):
         if index != -1:
             self.downloads[index].parentWindow = self
             self.downloads[index].startDownload()
+            
+    def stopDownload(self):
+        index = self.ui.downloadsList.currentRow()
+        if index != -1:
+            self.downloads[index].stopDownload()
+            self.downloads.pop(index)
+            self.updateTable()
+
+    def pauseDownload(self):
+        index = self.ui.downloadsList.currentRow()
+        if index != -1:
+            self.downloads[index].pauseDownload()
+
 
 class Download:
     def __init__(self, url, filename, md5hash):
@@ -68,6 +86,7 @@ class Download:
         self.progress = 0
         self.thread = None
         self.parentWindow = None
+        self.downloadActive = 0
 
     def startDownload(self):
         if self.filename == "":
@@ -77,13 +96,19 @@ class Download:
                                                              self.filename,
                                                              self.md5hash,
                                                              self))
-        thread.start()    
+        thread.start()
+        self.downloadActive = 1
     
     def pauseDownload(self):
-         pass
+        if self.downloadActive == 1:
+            self.downloadActive = 0
+            print("Disabled download")
+        else:
+            self.downloadActive = 1
+            print("Activated download")
     
     def stopDownload(self):
-        pass
+        print("Stopping download")
 
     def __str__(self):
         if self.filename == "":
@@ -91,7 +116,7 @@ class Download:
         else:
             return "{} - {}".format(self.filename, self.progress)
 
-
+#TODO: Rewrite this and possibly embed it into the download class, try to make this threading friendly
 def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
     """Downloads a file"""
     try:
@@ -127,6 +152,8 @@ def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
                         parent.progress = "Downloading..."
                         parentWindow.updateTable()
                     f.write(chunk)
+                    while parent.downloadActive == 0:
+                        pass
                 print("Download finished")
                 parent.progress = "Download Complete"
                 parentWindow.updateTable()
@@ -142,16 +169,19 @@ def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
     except Exception as e:
         print(e)
 
+
 def checksum(filename, md5sum):
     """Checks the file against the checksum"""
     with open(filename, 'rb') as f:
-        hash = md5(f.read()).hexdigest()
-        if hash == md5sum:
+        fhash = md5(f.read()).hexdigest()
+        if fhash == md5sum:
             return True
         else:
             return False
 
 #downloadFile("http://downloads.sourceforge.net/project/filezilla/FileZilla_Client/3.9.0.6/FileZilla_3.9.0.6_x86_64-linux-gnu.tar.bz2?r=&ts=1419810214&use_mirror=softlayer-sng", None, "07f9fa2a5069932285e0217bfd350626")
+
+
 def main():
     app = QtGui.QApplication(sys.argv)
     win = MainWindow()
