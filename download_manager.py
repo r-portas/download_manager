@@ -116,7 +116,8 @@ class Download:
         else:
             return "{} - {}".format(self.filename, self.progress)
 
-#TODO: Rewrite this and possibly embed it into the download class, try to make this threading friendly
+#TODO: Move this into a QT Thread and pass the listWidget into it
+# Example: http://stackoverflow.com/questions/9957195/updating-gui-elements-in-multithreaded-pyqt
 def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
     """Downloads a file"""
     try:
@@ -149,14 +150,14 @@ def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
                         parentWindow.updateTable()
                     else:
                         print("Received {}".format(recSize))
-                        parent.progress = "Downloading..."
-                        parentWindow.updateTable()
+                        dlText = "Downloaded {}mb".format(float(recSize)/float(1000000))
+
                     f.write(chunk)
                     while parent.downloadActive == 0:
                         pass
                 print("Download finished")
-                parent.progress = "Download Complete"
-                parentWindow.updateTable()
+                #parent.progress = "Download Complete"
+                #parentWindow.updateTable()
                 
             else:
                 print("Bad status code received, canceling download [Status code: {}]".format(req.status_code))
