@@ -7,7 +7,7 @@ from requests import get, head, codes
 from hashlib import md5
 from re import findall
 from os import remove, path
-from PySide import QtGui
+from PySide import QtGui, QtCore
 import sys
 import threading
 
@@ -88,15 +88,27 @@ class Download:
         self.parentWindow = None
         self.downloadActive = 0
 
+    def setProgress(self, progress):
+        try:
+            self.progress = progress
+            self.parentWindow.updateTable()
+        except:
+            pass
+            # PLEASE FIX MY ERROR PYTHON GODS
+
     def startDownload(self):
         if self.filename == "":
             self.filename = None
-        thread = threading.Thread(target=downloadFile, args=(self.url,
+        """
+        self.thread = threading.Thread(target=downloadFile, args=(self.url,
                                                              self.parentWindow,
                                                              self.filename,
                                                              self.md5hash,
                                                              self))
-        thread.start()
+        """
+        self.thread = DownloadThread()
+        self.thread.setData(self.url, self.filename, self.md5hash, self)
+        self.thread.start()
         self.downloadActive = 1
     
     def pauseDownload(self):
@@ -118,6 +130,78 @@ class Download:
 
 #TODO: Move this into a QT Thread and pass the listWidget into it
 # Example: http://stackoverflow.com/questions/9957195/updating-gui-elements-in-multithreaded-pyqt
+
+
+class DownloadThread(QtCore.QThread):
+    def __init__(self, parent=None):
+        QtCore.QThread.__init__(self, parent)
+        self.parent = parent
+        self.url = None
+        self.filename = None
+        self.md5hash = None
+
+    def setData(self, url, filename, md5hash, parent):
+        self.parent = parent
+        self.url = url
+        self.filename = filename
+        self.md5hash = md5hash
+
+    def run(self):
+        self.startDownload()
+        self.exec_()
+
+    def startDownload(self):
+        try:
+            amount = 1024
+            headers = head(self.url).headers
+            filesize = headers.get("Content-Length")
+            if self.filename == None:
+                # Automatically name the file
+                content = headers.get('content-disposition')
+                dlFilename = findall('filename="(.*)"', content)[0]
+                self.filename = dlFilename
+                self.parent.filename = self.filename
+                self.parent.setProgress(0)
+
+            if path.isfile(self.filename):
+                remove(self.filename)
+
+            offset = 0
+
+            with open(self.filename, 'wb') as f:
+                req = get(self.url, stream=True)
+                if req.status_code == codes.ok:
+                    print("Status code OK, proceeding with download")
+                    recSize = 0
+                    print("Starting download")
+                    for chunk in req.iter_content(amount):
+                        recSize += amount
+                        if filesize:
+                            print("Received {}/{}".format(recSize, filesize))
+                            prog = float(recSize)/float(filesize)
+                            self.parent.setProgress("{}%".format(prog))
+                        else:
+                            print("Received {}".format(recSize))
+                            dlText = "Downloaded {}mb".format(float(recSize)/float(1000000))
+
+                            offset += 1
+
+                            if offset > 10:
+                                self.parent.setProgress(dlText)
+                                offset = 0
+
+                        f.write(chunk)
+
+                    print("Download finished")
+                    self.parent.setProgress("Download Complete")
+
+                else:
+                    print("Bad status code received, canceling download [Status code: {}]".format(req.status_code))
+
+        except Exception as e:
+            print("ERROR: {}".format(e))
+
+
 def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
     """Downloads a file"""
     try:
@@ -151,6 +235,8 @@ def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
                     else:
                         print("Received {}".format(recSize))
                         dlText = "Downloaded {}mb".format(float(recSize)/float(1000000))
+                        parent.progress = dlText
+                        parentWindow.updateTable()
 
                     f.write(chunk)
                     while parent.downloadActive == 0:
