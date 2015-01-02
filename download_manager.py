@@ -98,7 +98,6 @@ class Download:
         self.thread.setData(self.url, self.filename, self.md5hash, self)
         self.thread.start()
         self.downloadActive = 1
-
         #TODO: Disable the button once pressed
     
     def stopDownload(self):
