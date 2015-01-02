@@ -11,13 +11,10 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Download Manager</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="1" rowspan="4">
-     <widget class="QListWidget" name="downloadsList"/>
-    </item>
     <item row="0" column="0">
      <widget class="QPushButton" name="startButton">
       <property name="text">
@@ -25,14 +22,10 @@
       </property>
      </widget>
     </item>
-    <item row="1" column="0">
-     <widget class="QPushButton" name="pauseButton">
-      <property name="text">
-       <string>Pause Download</string>
-      </property>
-     </widget>
+    <item row="0" column="1" rowspan="3">
+     <widget class="QListWidget" name="downloadsList"/>
     </item>
-    <item row="2" column="0">
+    <item row="1" column="0">
      <widget class="QPushButton" name="stopDownload">
       <property name="text">
        <string>Stop Download</string>

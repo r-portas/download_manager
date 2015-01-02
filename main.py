@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'main.ui'
 #
-# Created: Mon Dec 29 10:51:38 2014
+# Created: Fri Jan  2 10:44:24 2015
 #      by: pyside-uic 0.2.15 running on PySide 1.2.1
 #
 # WARNING! All changes made in this file will be lost!
@@ -17,18 +17,15 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtGui.QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName("gridLayout")
-        self.downloadsList = QtGui.QListWidget(self.centralwidget)
-        self.downloadsList.setObjectName("downloadsList")
-        self.gridLayout.addWidget(self.downloadsList, 0, 1, 4, 1)
         self.startButton = QtGui.QPushButton(self.centralwidget)
         self.startButton.setObjectName("startButton")
         self.gridLayout.addWidget(self.startButton, 0, 0, 1, 1)
-        self.pauseButton = QtGui.QPushButton(self.centralwidget)
-        self.pauseButton.setObjectName("pauseButton")
-        self.gridLayout.addWidget(self.pauseButton, 1, 0, 1, 1)
+        self.downloadsList = QtGui.QListWidget(self.centralwidget)
+        self.downloadsList.setObjectName("downloadsList")
+        self.gridLayout.addWidget(self.downloadsList, 0, 1, 3, 1)
         self.stopDownload = QtGui.QPushButton(self.centralwidget)
         self.stopDownload.setObjectName("stopDownload")
-        self.gridLayout.addWidget(self.stopDownload, 2, 0, 1, 1)
+        self.gridLayout.addWidget(self.stopDownload, 1, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtGui.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 640, 27))
@@ -48,9 +45,8 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
-        MainWindow.setWindowTitle(QtGui.QApplication.translate("MainWindow", "MainWindow", None, QtGui.QApplication.UnicodeUTF8))
+        MainWindow.setWindowTitle(QtGui.QApplication.translate("MainWindow", "Download Manager", None, QtGui.QApplication.UnicodeUTF8))
         self.startButton.setText(QtGui.QApplication.translate("MainWindow", "Start Download", None, QtGui.QApplication.UnicodeUTF8))
-        self.pauseButton.setText(QtGui.QApplication.translate("MainWindow", "Pause Download", None, QtGui.QApplication.UnicodeUTF8))
         self.stopDownload.setText(QtGui.QApplication.translate("MainWindow", "Stop Download", None, QtGui.QApplication.UnicodeUTF8))
         self.menuFile.setTitle(QtGui.QApplication.translate("MainWindow", "File", None, QtGui.QApplication.UnicodeUTF8))
         self.actionNew_Download.setText(QtGui.QApplication.translate("MainWindow", "New Download", None, QtGui.QApplication.UnicodeUTF8))

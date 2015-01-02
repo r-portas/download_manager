@@ -24,7 +24,6 @@ class Popup(QtGui.QWidget):
         self.show()
         
     def accept(self):
-        #self.parent.downloads.append()
         url = self.ui.urlEdit.text()
         filename = self.ui.filenameEdit.text()
         md5 = self.ui.hashEdit.text()
@@ -48,7 +47,6 @@ class MainWindow(QtGui.QMainWindow):
         self.ui.actionNew_Download.triggered.connect(self.addDownload)
         self.ui.startButton.clicked.connect(self.startDownload)
         self.ui.stopDownload.clicked.connect(self.stopDownload)
-        self.ui.pauseButton.clicked.connect(self.pauseDownload)
         self.show()
         
     def addDownload(self):
@@ -68,14 +66,10 @@ class MainWindow(QtGui.QMainWindow):
     def stopDownload(self):
         index = self.ui.downloadsList.currentRow()
         if index != -1:
-            self.downloads[index].stopDownload()
-            self.downloads.pop(index)
-            self.updateTable()
-
-    def pauseDownload(self):
-        index = self.ui.downloadsList.currentRow()
-        if index != -1:
-            self.downloads[index].pauseDownload()
+            if self.downloads[index].downloadActive == 0:
+                self.downloads[index].stopDownload()
+                self.downloads.pop(index)
+                self.updateTable()
 
 
 class Download:
@@ -87,37 +81,25 @@ class Download:
         self.thread = None
         self.parentWindow = None
         self.downloadActive = 0
+        self.msgBox = None
 
     def setProgress(self, progress):
+        # This try statement was added to fix errors in the download thread
         try:
             self.progress = progress
             self.parentWindow.updateTable()
         except:
             pass
-            # PLEASE FIX MY ERROR PYTHON GODS
 
     def startDownload(self):
         if self.filename == "":
             self.filename = None
-        """
-        self.thread = threading.Thread(target=downloadFile, args=(self.url,
-                                                             self.parentWindow,
-                                                             self.filename,
-                                                             self.md5hash,
-                                                             self))
-        """
         self.thread = DownloadThread()
         self.thread.setData(self.url, self.filename, self.md5hash, self)
         self.thread.start()
         self.downloadActive = 1
-    
-    def pauseDownload(self):
-        if self.downloadActive == 1:
-            self.downloadActive = 0
-            print("Disabled download")
-        else:
-            self.downloadActive = 1
-            print("Activated download")
+
+        #TODO: Disable the button once pressed
     
     def stopDownload(self):
         print("Stopping download")
@@ -127,10 +109,6 @@ class Download:
             return "{} - {}".format(self.url, self.progress)
         else:
             return "{} - {}".format(self.filename, self.progress)
-
-#TODO: Move this into a QT Thread and pass the listWidget into it
-# Example: http://stackoverflow.com/questions/9957195/updating-gui-elements-in-multithreaded-pyqt
-
 
 class DownloadThread(QtCore.QThread):
     def __init__(self, parent=None):
@@ -151,76 +129,31 @@ class DownloadThread(QtCore.QThread):
         self.exec_()
 
     def startDownload(self):
-        try:
-            amount = 1024
-            headers = head(self.url).headers
-            filesize = headers.get("Content-Length")
-            if self.filename == None:
-                # Automatically name the file
-                content = headers.get('content-disposition')
+        #TODO: Put a try except statement around this once tested
+        amount = 1024
+        headers = head(self.url).headers
+        filesize = headers.get("Content-Length")
+        if self.filename == None:
+            # Automatically name the file
+            content = headers.get('content-disposition')
+            if content:
                 dlFilename = findall('filename="(.*)"', content)[0]
                 self.filename = dlFilename
                 self.parent.filename = self.filename
                 self.parent.setProgress(0)
+            else:
+                self.msgBox = QtGui.QMessageBox()
+                self.msgBox.setText("Cannot determine file name")
+                self.msgBox.exec_()
+                return
 
-            if path.isfile(self.filename):
-                remove(self.filename)
+        if path.isfile(self.filename):
+            remove(self.filename)
 
-            offset = 0
+        offset = 0
 
-            with open(self.filename, 'wb') as f:
-                req = get(self.url, stream=True)
-                if req.status_code == codes.ok:
-                    print("Status code OK, proceeding with download")
-                    recSize = 0
-                    print("Starting download")
-                    for chunk in req.iter_content(amount):
-                        recSize += amount
-                        if filesize:
-                            print("Received {}/{}".format(recSize, filesize))
-                            prog = float(recSize)/float(filesize)
-                            self.parent.setProgress("{}%".format(prog))
-                        else:
-                            print("Received {}".format(recSize))
-                            dlText = "Downloaded {}mb".format(float(recSize)/float(1000000))
-
-                            offset += 1
-
-                            if offset > 10:
-                                self.parent.setProgress(dlText)
-                                offset = 0
-
-                        f.write(chunk)
-
-                    print("Download finished")
-                    self.parent.setProgress("Download Complete")
-
-                else:
-                    print("Bad status code received, canceling download [Status code: {}]".format(req.status_code))
-
-        except Exception as e:
-            print("ERROR: {}".format(e))
-
-
-def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
-    """Downloads a file"""
-    try:
-        amount = 1024
-        headers = head(url).headers
-        filesize = headers.get('Content-Length')
-        if filename == None:
-            # Automatically name the file
-            content = headers.get('content-disposition')
-            dlFilename = findall('filename="(.*)"', content)[0]
-            filename = dlFilename
-            parent.filename = filename
-            parentWindow.updateTable()
-            
-        if path.isfile(filename):
-            remove(filename)
-            
-        with open(filename, 'wb') as f:
-            req = get(url, stream=True)
+        with open(self.filename, 'wb') as f:
+            req = get(self.url, stream=True)
             if req.status_code == codes.ok:
                 print("Status code OK, proceeding with download")
                 recSize = 0
@@ -230,44 +163,45 @@ def downloadFile(url, parentWindow, filename=None, md5hash=None, parent=None):
                     if filesize:
                         print("Received {}/{}".format(recSize, filesize))
                         prog = float(recSize)/float(filesize)
-                        parent.progress = prog * 100
-                        parentWindow.updateTable()
+
+                        offset += 1
+                        if offset > 10:
+                            self.parent.setProgress("{0:.2f}%".format(prog*100))
+                            offset = 0
                     else:
                         print("Received {}".format(recSize))
-                        dlText = "Downloaded {}mb".format(float(recSize)/float(1000000))
-                        parent.progress = dlText
-                        parentWindow.updateTable()
+                        dlText = "Downloaded {0:.2f}mb".format(float(recSize)/float(1000000))
+
+                        offset += 1
+
+                        if offset > 10:
+                            self.parent.setProgress(dlText)
+                            offset = 0
 
                     f.write(chunk)
-                    while parent.downloadActive == 0:
-                        pass
+
                 print("Download finished")
-                #parent.progress = "Download Complete"
-                #parentWindow.updateTable()
-                
+                self.parent.setProgress("Download Complete")
+
+                if self.md5hash:
+                    if checksum(self.filename, self.md5hash):
+                        self.parent.setProgress("Checksum Matched")
+                    else:
+                        self.parent.setProgress("Checksum failed")
+
             else:
                 print("Bad status code received, canceling download [Status code: {}]".format(req.status_code))
-        
-        if md5hash:
-            print("Checking checksum")
-            if checksum(filename, md5hash):
-                print("Checksum matched")
-    
-    except Exception as e:
-        print(e)
-
 
 def checksum(filename, md5sum):
     """Checks the file against the checksum"""
     with open(filename, 'rb') as f:
         fhash = md5(f.read()).hexdigest()
+        print("File hash: " + fhash)
+        print("MD5 hash: " + md5sum)
         if fhash == md5sum:
             return True
         else:
             return False
-
-#downloadFile("http://downloads.sourceforge.net/project/filezilla/FileZilla_Client/3.9.0.6/FileZilla_3.9.0.6_x86_64-linux-gnu.tar.bz2?r=&ts=1419810214&use_mirror=softlayer-sng", None, "07f9fa2a5069932285e0217bfd350626")
-
 
 def main():
     app = QtGui.QApplication(sys.argv)
