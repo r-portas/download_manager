@@ -59,16 +59,16 @@ class MainWindow(QtGui.QMainWindow):
     def startDownload(self):
         index = self.ui.downloadsList.currentRow()
         if index != -1:
-            self.downloads[index].parentWindow = self
-            self.downloads[index].startDownload()
+            if self.downloads[index].downloadActive == 0:
+                self.downloads[index].parentWindow = self
+                self.downloads[index].startDownload()
             
     def stopDownload(self):
         index = self.ui.downloadsList.currentRow()
         if index != -1:
-            if self.downloads[index].downloadActive == 0:
-                self.downloads[index].stopDownload()
-                self.downloads.pop(index)
-                self.updateTable()
+            self.downloads[index].stopDownload()
+            self.downloads.pop(index)
+            self.updateTable()
 
 
 class Download:
@@ -140,10 +140,18 @@ class DownloadThread(QtCore.QThread):
                 self.parent.filename = self.filename
                 self.parent.setProgress(0)
             else:
-                self.msgBox = QtGui.QMessageBox()
-                self.msgBox.setText("Cannot determine file name")
-                self.msgBox.exec_()
-                return
+                print("Else statement")
+                self.filename = getFilename(self.url)
+
+                if self.filename == None:
+                    self.msgBox = QtGui.QMessageBox()
+                    self.msgBox.setText("Cannot determine file name")
+                    self.msgBox.exec_()
+                    return
+
+                else:
+                    self.parent.filename = self.filename
+                    self.parent.setProgress(0)
 
         if path.isfile(self.filename):
             remove(self.filename)
@@ -190,6 +198,7 @@ class DownloadThread(QtCore.QThread):
             else:
                 print("Bad status code received, canceling download [Status code: {}]".format(req.status_code))
 
+
 def checksum(filename, md5sum):
     """Checks the file against the checksum"""
     with open(filename, 'rb') as f:
@@ -200,6 +209,17 @@ def checksum(filename, md5sum):
             return True
         else:
             return False
+
+
+def getFilename(url):
+    """Attempts to get the filename from the URL"""
+    components = url.split('/')
+    fname = components[-1]
+    if '.' in fname:
+        return fname
+    else:
+        return None
+
 
 def main():
     app = QtGui.QApplication(sys.argv)
