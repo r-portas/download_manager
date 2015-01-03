@@ -9,7 +9,6 @@ from re import findall
 from os import remove, path
 from PySide import QtGui, QtCore
 import sys
-import threading
 
 from main import Ui_MainWindow as mainFrame
 from popup import Ui_Dialog as popupFrame
