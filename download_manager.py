@@ -9,7 +9,7 @@ from re import findall
 from os import remove, path
 from PySide import QtGui, QtCore
 import sys
-
+import Queue
 from main import Ui_MainWindow as mainFrame
 from popup import Ui_Dialog as popupFrame
 
@@ -78,23 +78,20 @@ class Download:
         self.md5hash = md5hash
         self.progress = 0
         self.thread = None
+        self.queue = Queue.Queue()
         self.parentWindow = None
         self.downloadActive = 0
         self.msgBox = None
 
-    def setProgress(self, progress):
-        # This try statement was added to fix errors in the download thread
-        try:
-            self.progress = progress
-            self.parentWindow.updateTable()
-        except:
-            pass
+    def updateProgress(self):
+        self.progress = self.queue.get()
+        self.parentWindow.updateTable()
 
     def startDownload(self):
         if self.filename == "":
             self.filename = None
         self.thread = DownloadThread()
-        self.thread.setData(self.url, self.filename, self.md5hash, self)
+        self.thread.setData(self.url, self.filename, self.md5hash, self.queue, self)
         self.thread.start()
         self.downloadActive = 1
         #TODO: Disable the button once pressed
@@ -108,15 +105,18 @@ class Download:
         else:
             return "{} - {}".format(self.filename, self.progress)
 
+#TODO: implement a Queue here to parse the data back to the main window
 class DownloadThread(QtCore.QThread):
     def __init__(self, parent=None):
         QtCore.QThread.__init__(self, parent)
+        self.queue = None
         self.parent = parent
         self.url = None
         self.filename = None
         self.md5hash = None
 
-    def setData(self, url, filename, md5hash, parent):
+    def setData(self, url, filename, md5hash, queue, parent):
+        self.queue = queue
         self.parent = parent
         self.url = url
         self.filename = filename
@@ -138,9 +138,9 @@ class DownloadThread(QtCore.QThread):
                 dlFilename = findall('filename="(.*)"', content)[0]
                 self.filename = dlFilename
                 self.parent.filename = self.filename
-                self.parent.setProgress(0)
+                self.queue.put('0')
+                self.parent.updateProgress()
             else:
-                print("Else statement")
                 self.filename = getFilename(self.url)
 
                 if self.filename == None:
@@ -151,7 +151,8 @@ class DownloadThread(QtCore.QThread):
 
                 else:
                     self.parent.filename = self.filename
-                    self.parent.setProgress(0)
+                    self.queue.put('0')
+                    self.parent.updateProgress()
 
         if path.isfile(self.filename):
             remove(self.filename)
@@ -172,7 +173,9 @@ class DownloadThread(QtCore.QThread):
 
                         offset += 1
                         if offset > 10:
-                            self.parent.setProgress("{0:.2f}%".format(prog*100))
+
+                            self.queue.put("{0:.2f}%".format(prog*100))
+                            self.parent.updateProgress()
                             offset = 0
                     else:
                         print("Received {}".format(recSize))
@@ -181,19 +184,23 @@ class DownloadThread(QtCore.QThread):
                         offset += 1
 
                         if offset > 10:
-                            self.parent.setProgress(dlText)
+                            self.queue.put(dlText)
+                            self.parent.updateProgress()
                             offset = 0
 
                     f.write(chunk)
 
                 print("Download finished")
-                self.parent.setProgress("Download Complete")
+                self.queue.put("Download Finished")
+                self.parent.updateProgress()
 
                 if self.md5hash:
                     if checksum(self.filename, self.md5hash):
-                        self.parent.setProgress("Checksum Matched")
+                        self.queue.put("Checksum matched")
+                        self.parent.updateProgress()
                     else:
-                        self.parent.setProgress("Checksum failed")
+                        self.queue.put("Checksum math failed")
+                        self.parent.updateProgress()
 
             else:
                 print("Bad status code received, canceling download [Status code: {}]".format(req.status_code))
