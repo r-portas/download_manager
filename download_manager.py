@@ -18,15 +18,22 @@ class Popup(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self)
         self.parent = parent
+        self.path = ""
         self.ui = popupFrame()
         self.ui.setupUi(self)
+        self.ui.downloadPathButton.clicked.connect(self.getPath)
         self.show()
-        
+
+    def getPath(self):
+        fpath = QtGui.QFileDialog.getExistingDirectory(self, "Select directory")
+        self.ui.filepathDisplay.setText(fpath)
+        self.path = fpath
+
     def accept(self):
         url = self.ui.urlEdit.text()
         filename = self.ui.filenameEdit.text()
         md5 = self.ui.hashEdit.text()
-        self.parent.downloads.append(Download(url, filename, md5))
+        self.parent.downloads.append(Download(url, filename, md5, self.path))
         self.parent.updateTable()
         self.close()
         
@@ -72,10 +79,11 @@ class MainWindow(QtGui.QMainWindow):
 
 
 class Download:
-    def __init__(self, url, filename, md5hash):
+    def __init__(self, url, filename, md5hash, fpath):
         self.url = url
         self.filename = filename
         self.md5hash = md5hash
+        self.path = fpath
         self.progress = 0
         self.thread = None
         self.queue = Queue.Queue()
@@ -88,10 +96,10 @@ class Download:
         self.parentWindow.updateTable()
 
     def startDownload(self):
-        if self.filename == "":
-            self.filename = None
         self.thread = DownloadThread()
-        self.thread.setData(self.url, self.filename, self.md5hash, self.queue, self)
+        if self.filename == '':
+            self.filename = None
+        self.thread.setData(self.url, self.filename, self.path, self.md5hash, self.queue, self)
         self.thread.start()
         self.downloadActive = 1
         #TODO: Disable the button once pressed
@@ -113,12 +121,14 @@ class DownloadThread(QtCore.QThread):
         self.parent = parent
         self.url = None
         self.filename = None
+        self.filepath = None
         self.md5hash = None
 
-    def setData(self, url, filename, md5hash, queue, parent):
+    def setData(self, url, filename, filepath, md5hash, queue, parent):
         self.queue = queue
         self.parent = parent
         self.url = url
+        self.filepath = filepath
         self.filename = filename
         self.md5hash = md5hash
 
@@ -154,12 +164,14 @@ class DownloadThread(QtCore.QThread):
                     self.queue.put('0')
                     self.parent.updateProgress()
 
-        if path.isfile(self.filename):
-            remove(self.filename)
+        finalPath = path.join(self.filepath, self.filename)
+
+        if path.isfile(finalPath):
+            remove(finalPath)
 
         offset = 0
 
-        with open(self.filename, 'wb') as f:
+        with open(finalPath, 'wb') as f:
             req = get(self.url, stream=True)
             if req.status_code == codes.ok:
                 print("Status code OK, proceeding with download")
@@ -195,7 +207,7 @@ class DownloadThread(QtCore.QThread):
                 self.parent.updateProgress()
 
                 if self.md5hash:
-                    if checksum(self.filename, self.md5hash):
+                    if checksum(finalPath, self.md5hash):
                         self.queue.put("Checksum matched")
                         self.parent.updateProgress()
                     else:
